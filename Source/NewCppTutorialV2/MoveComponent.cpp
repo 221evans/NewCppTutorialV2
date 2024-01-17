@@ -14,6 +14,27 @@ UMoveComponent::UMoveComponent()
 }
 
 
+void UMoveComponent::EnableMovement(bool ShouldMove)
+{
+	// Assign value and set correct tick enable state
+	MoveEnable = ShouldMove;
+	SetComponentTickEnabled(MoveEnable);
+}
+
+void UMoveComponent::ResetMovement()
+{
+	// Clear distance and set to origin
+	CurDistance = 0.0f;
+	SetRelativeLocation(StartRelativeLocation);
+}
+
+void UMoveComponent::SetMoveDirection(int Direction)
+{
+	MoveDirection = Direction >= 1 ? 1 : -1;
+}
+
+
+
 // Called when the game starts
 void UMoveComponent::BeginPlay()
 {
@@ -26,6 +47,8 @@ void UMoveComponent::BeginPlay()
 	MoveOffsetNorm.Normalize();
 	MaxDistance = MoveOffset.Length();
 
+	// Check if ticking is required
+	SetComponentTickEnabled(MoveEnable);
 	
 }
 
@@ -36,10 +59,21 @@ void UMoveComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 	// Set current distance
-	CurDistance += DeltaTime * Speed * MoveDirection;
-	if (CurDistance >= MaxDistance || CurDistance <=0.f)
+	if(MoveEnable)
 	{
-		MoveDirection *= -1;
+		CurDistance += DeltaTime * Speed * MoveDirection;
+		if (CurDistance >= MaxDistance || CurDistance <= 0.f)
+		{
+			// invert direction
+			MoveDirection *= -1;
+
+			// fire event
+			OnEndPointReached.Broadcast(CurDistance >= MaxDistance);
+
+			// Clamp distance
+			CurDistance = FMath::Clamp(CurDistance, 0.0f,MaxDistance);
+		}
+	
 	}
 	
 	// Compute and set current location
